@@ -3,8 +3,8 @@
 if($quietmode && $_REQUEST['ext_graph']) {
 	include_once(dirname(__FILE__).'/extbreakdown/ext_graph.php');
 } else {
-	$cm =& cronmanager::create($db);
-	$online_updates = $cm->updates_enabled() ? true : false;
+//	$cm =& cronmanager::create($db);
+//	$online_updates = $cm->updates_enabled() ? true : false;
 
 	// check dev site to see if new version of module is available
 	if ($online_updates && $foo = callstatistics_vercheck()) {
