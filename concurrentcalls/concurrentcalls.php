@@ -30,9 +30,9 @@
 	$dbConf["engine"]	=	$amp_conf['AMPDBENGINE'];
 	$dbConf["cdrdbase"]	=	"asteriskcdrdb";
 
-	// If the database engine is anything other than MySQL, bail out.
+	// If the database engine is anything other than mysqli, bail out.
 	if ($dbConf["engine"] <> "mysql") {
-		echo("Only MySQL is supported at this time.");
+		echo("Only mysqli is supported at this time.");
 		exit;
 	}
 
@@ -99,12 +99,12 @@
 	// of the hash will an array including an integer representing if the calls is beginning (+1) or ending (-1).
 	$calls = array();
 
-	// Connect to the MySQL database
-	$link = mysql_connect($dbConf["host"], $dbConf["user"], $dbConf["pass"])
-		or die("Failed to connect to MySQL server at: " . $dbConf["host"]);
+	// Connect to the mysqli database
+	$link = mysqli_connect($dbConf["host"], $dbConf["user"], $dbConf["pass"])
+		or die("Failed to connect to mysqli server at: " . $dbConf["host"]);
 
 	// Select the 'asterisk' database and obtain a list of trunks
-	mysql_select_db($dbConf["database"], $link)
+	mysqli_select_db($link, $dbConf["database"])
 		or die("Failed to select database: " . $dbConf["database"]);
 
 	// query to get all SIP trunks
@@ -119,14 +119,14 @@
 					)
 				ORDER BY
 					trunkid";
-	$SQLTrunksRS = mysql_query($SQLTrunks)
+	$SQLTrunksRS = mysqli_query($link, $SQLTrunks)
 		or die("Failed to query the \"" . $dbConf["database"] . "\" database.");
 
 	// Populate the $trunks array
 	$trunks[0] = "";  // first entry is blank
 
 	// Add SIP trunks to $trunks array
-	while ($data = mysql_fetch_array($SQLTrunksRS)) {
+	while ($data = mysqli_fetch_array($SQLTrunksRS)) {
 		$trunks[] = array(
 			'channelid' => "SIP/".$data["channelid"]."-",
 			'name' => $data["name"]." (sip)",
@@ -144,11 +144,11 @@
 					)
 				ORDER BY
 					trunkid";
-	$SQLTrunksRS = mysql_query($SQLTrunks)
+	$SQLTrunksRS = mysqli_query($link,$SQLTrunks)
 		or die("Failed to query the \"" . $dbConf["database"] . "\" database.");
 
 	// Add IAX2 trunks to $trunks array
-	while ($data = mysql_fetch_array($SQLTrunksRS)) {
+	while ($data = mysqli_fetch_array($SQLTrunksRS)) {
 		$trunks[] = array(
 			'channelid' => "IAX2/".$data["channelid"]."-",
 			'name' => $data["name"]." (iax)",
@@ -167,11 +167,11 @@
 					)
 				ORDER BY
 					trunkid";
-	$SQLTrunksRS = mysql_query($SQLTrunks)
+	$SQLTrunksRS = mysqli_query($link,$SQLTrunks)
 		or die("Failed to query the \"" . $dbConf["database"] . "\" database.");
 
 	// Add custom trunks to $trunks array
-	while ($data = mysql_fetch_array($SQLTrunksRS)) {
+	while ($data = mysqli_fetch_array($SQLTrunksRS)) {
 		$trunks[] = array(
 			'channelid' => "custom/".$data["channelid"]."-",
 			'name' => $data["name"]." (custom)",
@@ -190,11 +190,11 @@
 					
 				ORDER BY
 					trunkid";
-	$SQLTrunksRS = mysql_query($SQLTrunks)
+	$SQLTrunksRS = mysqli_query($link,$SQLTrunks)
 		or die("Failed to query the \"" . $dbConf["database"] . "\" database.");
 
 	// Add DAHDI trunks to $trunks array
-	while ($data = mysql_fetch_array($SQLTrunksRS)) {
+	while ($data = mysqli_fetch_array($SQLTrunksRS)) {
 		$trunks[] = array(
 			'channelid' => $data["channelid"],   // treat this one differently until we find out if channel or group
 			'name' => $data["name"]." (dahdi)",
@@ -227,7 +227,7 @@
 	// can not query cdr for DAHDI groups directly, only DAHDI channels. If DAHDI $channelid is all numeric, it's a channel
 	// if DAHDI $channelid has non-numeric chars, it is a group so query asterisk for all channels in the group and build 
 	// regex that will match all channels
-	if ($trunks[$trunk]['dahdi'] == true) {
+	if (isset($trunks[$trunk]['dahdi']) && $trunks[$trunk]['dahdi'] == true) {
 		if (is_numeric($trunks[$trunk]['channelid'])) {
 			$trunks[$trunk]['channelid'] = "DAHDI/".$trunks[$trunk]['channelid']."-";
 		}
@@ -245,11 +245,11 @@
 
 	// build channel search query, regexp for dahdi groups, all other channels get search by like
 	if ($dahdi_group) {
-		// note that $trunks is not escaped for MySQL regex, preg_quote seemed to break REGEXP search, not sure how to escape a mysql regexp
-		$channel_search = "channel REGEXP '" . $trunks[$trunk]['channelid'] . "' OR dstchannel REGEXP '" . $trunks[$trunk]['channelid']."' ";
+		// note that $trunks is not escaped for mysqli regex, preg_quote seemed to break REGEXP search, not sure how to escape a mysqli regexp
+		$channel_search = "channel REGEXP '" . (isset($trunks[$trunk]['channelid']) ? $trunks[$trunk]['channelid'] : "") . "' OR dstchannel REGEXP '" . (isset($trunks[$trunk]['channelid']) ? $trunks[$trunk]['channelid'] : "")."' ";
 	} 
 	else {
-		$channel_search = "channel LIKE '" . $trunks[$trunk]['channelid'] . "%' OR dstchannel LIKE '" . $trunks[$trunk]['channelid'] . "%'";
+		$channel_search = "channel LIKE '" . (isset($trunks[$trunk]['channelid']) ? $trunks[$trunk]['channelid'] : "") . "%' OR dstchannel LIKE '" . (isset($trunks[$trunk]['channelid']) ? $trunks[$trunk]['channelid'] : "") . "%'";
 	}
 
 
@@ -263,7 +263,7 @@
 	}
 
 	// Select the database
-	mysql_select_db($dbConf["cdrdbase"], $link)
+	mysqli_select_db($link, $dbConf["cdrdbase"])
 		or die("Failed to select database: " . $dbConf["cdrdbase"]);
 
 	// Define the SQL Query
@@ -305,11 +305,11 @@
 					}
 	$SQLCalls .= " ORDER BY
 	               	stime ASC";
-	$SQLCallsRS = mysql_query($SQLCalls)
+	$SQLCallsRS = mysqli_query($link,$SQLCalls)
 		or die("Failed to query the \"" . $dbConf["cdrdbase"] . "\" database.");
 
 	// Populate the $calls array
-	while ($data = mysql_fetch_array($SQLCallsRS)) {
+	while ($data = mysqli_fetch_array($SQLCallsRS)) {
 		if ( (strlen($data["src"]) >= $concurrentcalls_settings["min_num_length"]) || (is_numeric($data["dst"])) ) {
 			$calls[$data["stime"]][] = array(
 											"load"			=>	1,
@@ -341,8 +341,8 @@
 		}
 	}
 
-	// Close the link to MySQL
-	mysql_close($link);
+	// Close the link to mysqli
+	mysqli_close($link);
 
 	// Sort the $calls array by its keys.  This is the same as sorting all calls by their epoch timestamps,
 	// since the keys of the $calls array are the start and stop times of each call in epoch time.
@@ -485,9 +485,9 @@
 						<?php
 							for ($i = 0; $i < sizeof($trunks); $i++) {
 								if ($trunk == $i) {
-									echo("<option value='" . $i . "' selected>" . $trunks[$i]['name'] . "</option>");
+									echo("<option value='" . $i . "' selected>" . (isset($trunks[$i]['name']) ? $trunks[$i]['name'] : "") . "</option>");
 								} else {
-									echo("<option value='" . $i . "'>" . $trunks[$i]['name'] . "</option>");
+									echo("<option value='" . $i . "'>" . (isset($trunks[$i]['name']) ? $trunks[$i]['name'] : "") . "</option>");
 								}
 							}
 						?>
