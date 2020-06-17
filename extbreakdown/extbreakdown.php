@@ -111,11 +111,11 @@
 	}
 
 	// Connect to the MySQL database
-    $link = mysql_connect($dbConf["host"], $dbConf["user"], $dbConf["pass"])
+    $link = mysqli_connect($dbConf["host"], $dbConf["user"], $dbConf["pass"])
 		or die("Failed to connect to MySQL server at: " . $dbConf["host"]);
 
 	// Select the 'asterisk' database and obtain a list of trunks
-	mysql_select_db($dbConf["cdrdbase"], $link)
+	mysqli_select_db($link, $dbConf["cdrdbase"])
 		or die("Failed to select database: " . $dbConf["database"]);
 
 	$SQLCalls = "SELECT
@@ -145,12 +145,12 @@
 						Extension
 					ORDER BY
 						Extension";
-	$SQLCallsRS = mysql_query($SQLCalls)
+	$SQLCallsRS = mysqli_query($link, $SQLCalls)
 		or die("Failed to query the \"" . $dbConf["cdrdbase"] . "\" database.");
 
 	// Populate the $calls hash
 	$calls = array();
-	while ($data = mysql_fetch_array($SQLCallsRS)) {
+	while ($data = mysqli_fetch_array($SQLCallsRS)) {
 			$calls[$data["Extension"]][] = array(
 													"calls"		=>	$data["Calls"],
 													"seconds"	=>	$data["Seconds"]
@@ -158,7 +158,7 @@
 	}
 
 	// Close the link to MySQL
-	mysql_close($link);
+	mysqli_close($link);
 ?>
 	<script language="JavaScript" type="text/javascript">
 		function formSubmit(myform) {
